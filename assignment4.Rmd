@@ -1,0 +1,255 @@
+---
+title: "Assignment 4 Maxwell Pearse 831845, MAST30027, Mon 10-11, Yong See Foo"
+output:
+  word_document: default
+  html_document: default
+date: "2024-10-11"
+---
+## Question 1a
+
+![](1.png)
+
+## Question 1b
+
+![](2.png)
+
+## Question 2a
+```{r}
+set.seed(831845)
+x <- scan(file="assignment4_2024_q2x.txt", what=double())
+y <- scan(file="assignment4_2024_q2y.txt", what=double())
+```
+
+![](a.png)
+
+## Question 2b
+
+```{r}
+GibbsS<-function(mu.0, sigma2.0, nreps,x,y){
+  Gsamples<-matrix(nrow=nreps,ncol = 2) #space
+  Gsamples[1,]<-c(mu.0,sigma2.0)
+ 
+   #main loop
+  n=length(x)
+  m=length(y)
+  for(i in 2:nreps){
+    alpha=(m+1)/2
+    beta=(sum(y^2)+Gsamples[i-1,1])/2
+    sigma2<-1/rgamma(1,shape=alpha,rate=beta)
+    mu<-rnorm(1,sum(x)/(n+1/sigma2),sqrt(1/(n+1/sigma2)))
+    Gsamples[i,]<-c(mu,sigma2)
+  }
+  return(Gsamples)
+}
+Chain1<-GibbsS(10,5,500,x,y)
+Chain2<-GibbsS(-1,0.01,500,x,y)
+
+#make a trace plot for mu
+plot(1:500,Chain1[,1],col="red",type="l",ylim=c(min(Chain1[,1],Chain2[,1]),max(Chain1[,1],Chain2[,1])),xlab = "Iterations",ylab = "mu")
+points(1:500,Chain2[,1],type="l",col="blue")
+#trace plot for sigma
+plot(1:500,Chain1[,2],col="red",type="l",ylim=c(min(Chain1[,2],Chain2[,2]),max(Chain1[,2],Chain2[,2])),xlab = "Iterations",ylab = "sigma2")
+points(1:500,Chain2[,2],type="l",col="blue")
+```
+
+The samples from different chains have mixed well and behave similarly
+
+## Question 2c
+
+```{r}
+#We will remove the fist 50  samples as burn-in period after looking at the trace plot
+plot(density(Chain1[-(1:50),1]),ylab="Posterior Distribution",xlab = "mu",main = "")
+plot(density(Chain1[-(1:50),2]),ylab="Posterior Distribution",xlab = "sigma2",main = "")
+#estimate marginal posterior mean
+#for mu
+mean(Chain1[-(1:50),1])
+#for sigma2
+mean(Chain1[-(1:50),2])
+# 95% credible interval
+#for mu
+quantile(Chain1[-(1:50),1],probs=c(0.05,0.95))
+#for sigma
+quantile(Chain1[-(1:50),2],probs=c(0.05,0.95))
+```
+
+## Question 2d
+
+```{r}
+Metropolis<-function (mu.0, sigma2.0, nreps,x,y){
+  chain<-matrix(nrow = nreps,ncol=2)
+  chain[1,]<-c(mu.0,sigma2.0)
+  for(i in 1:(nreps-1)){
+    sigma2pro<-rgamma(1,5*chain[i,2],5)
+    mupro<-rnorm(1,chain[i,1],sqrt(sigma2pro))
+    candidate<-c(mupro,sigma2pro)
+    rup<-sum(dnorm(x,mupro,1,log = TRUE))+sum(dnorm(y,0,sqrt(sigma2pro),log = TRUE))+
+      dnorm(mupro,0,sqrt(sigma2pro),log = TRUE)+log(1/sigma2pro)+dgamma(chain[i,2],5*sigma2pro,5,log = TRUE)+
+      dnorm(chain[i,1],mupro,sqrt(chain[i,2]),log = TRUE)
+    rlw<-sum(dnorm(x,chain[i,1],1,log = TRUE))+sum(dnorm(y,0,sqrt(chain[i,2]),log = TRUE))
+  +dnorm(chain[i,1],0,sqrt(chain[i,2]),log = TRUE)+log(1/chain[i,2])+dgamma(sigma2pro,5*chain[i,2],5,log = TRUE)+
+    dnorm(mupro,chain[i,1],sqrt(sigma2pro),log = TRUE)
+    r<-rup-rlw
+    ind<-rbinom(1,1,exp(min(c(r,0))))
+    chain[i+1,]<-ind*candidate+(1-ind)*chain[i,1:2]
+  }
+  return(chain)
+}
+
+Chain3<-Metropolis(10,0.2,20000,x,y)
+Chain4<-Metropolis(-1,5,20000,x,y)
+#make a trace plot for mu
+plot(1:20000,Chain3[,1],col="red",type="l",ylim=c(min(Chain3[,1],Chain4[,1]),max(Chain3[,1],Chain4[,1])),xlab = "Iterations",ylab = "mu")
+points(1:20000,Chain4[,1],type="l",col="blue")
+#trace plot for sigma
+plot(1:20000,Chain3[,2],col="red",type="l",ylim=c(min(Chain3[,2],Chain4[,2]),max(Chain3[,2],Chain4[,2])),xlab = "Iterations",ylab = "sigma2")
+points(1:20000,Chain4[,2],type="l",col="blue")
+```
+
+The samples from different chains mix well and behave similarly
+
+## Question 2e
+
+```{r}
+#We will remove the fist 1000  samples as burn-in period.
+plot(density(Chain3[-(1:1000),1]),ylab="Posterior Distribution",xlab = "mu",main = "")
+plot(density(Chain3[-(1:1000),2]),ylab="Posterior Distribution",xlab = "sigma2",main = "")
+#estimate marginal posterior mean
+#for mu
+mean(Chain3[-(1:1000),1])
+#for sigma2
+mean(Chain3[-(1:1000),2])
+# 95% credible interval
+#for mu
+quantile(Chain3[-(1:1000),1],probs=c(0.05,0.95))
+#for sigma
+quantile(Chain3[-(1:1000),2],probs=c(0.05,0.95))
+```
+
+## Question 2f
+
+![](f.png)
+
+## Question 2g
+
+![](g.png)
+
+## Question 2h
+
+```{r}
+# X,Y : data
+# mu0 : prior for mu
+# a0, b0 : prior for sigma
+# initial values for mu*, sigma2*, a*, b*: mu.vi.init, sigma2.vi.init, a.vi.init, b.vi.init  
+# epsilon : If the ELBO has changed by less than epsilon, the CAVI algorithm will stop
+# max.iter : maximum number of iteration
+cavi.normal <- function(X,Y, a0, b0, mu.vi.init, sigma2.vi.init, a.vi.init, 
+                        b.vi.init, epsilon=1e-5, max.iter=100) {
+  
+  n = length(X)
+  m = length(Y)
+  
+  mu.vi = mu.vi.init
+  sigma2.vi = sigma2.vi.init
+  a.vi = a.vi.init
+  b.vi = b.vi.init
+  
+  # store the ELBO for each iteration
+  elbo = c()
+  
+  # I will store mu*, sigma2*, a*, b* for each iteration 
+  mu.vi.list = sigma2.vi.list = a.vi.list = b.vi.list = c()
+  
+  # compute the ELBO using initial values of mu*, sigma2*, a*, b*
+  Elogq.mu = -log(sigma2.vi)/2
+  Elogq.sigma2 = -log(b.vi) - lgamma(a.vi) + (a.vi +1)*digamma(a.vi) - a.vi
+  A = sigma2.vi + mu.vi^2 - 2*X*mu.vi + X*X 
+  #B = sigma2.vi + mu.vi^2 - 2*mu0*mu.vi + mu0^2
+  Elogp.x.y.mu.sigma2 = -0.5*sum(A) -(m+1)/2*(log(b.vi)-digamma(a.vi))-0.5*a.vi/b.vi*(sigma2.vi + mu.vi^2+ sum(Y^2)) 
+  + (-a0-1)*(log(b.vi)-digamma(a.vi)) - b0*a.vi/b.vi
+  
+  elbo = c(elbo, Elogp.x.y.mu.sigma2 -Elogq.mu - Elogq.sigma2)
+  mu.vi.list = c(mu.vi.list, mu.vi)
+  sigma2.vi.list = c(sigma2.vi.list, sigma2.vi)
+  a.vi.list = c(a.vi.list, a.vi)
+  b.vi.list = c(b.vi.list, b.vi)
+  
+  # set the change in the ELBO with 1
+  delta.elbo = 1
+  
+  # number of iteration
+  n.iter = 1
+  
+  # If the elbo has changed by less than epsilon, the CAVI will stop.   
+  while((delta.elbo > epsilon) & (n.iter <= max.iter)){
+    
+    # Update mu.vi and sigma2.vi
+    mu.vi = (sum(X))/(n+a.vi/b.vi)
+    sigma2.vi = 1/(n+a.vi/b.vi)
+    
+    # Update a.vi and b.vi
+    a.vi = (m+1)/2 + a0
+   # A = sigma2.vi + mu.vi^2 - 2*X*mu.vi + X*X 
+    #B = sigma2.vi + mu.vi^2 - 2*mu0*mu.vi + mu0^2
+    b.vi = 0.5*(sum(Y^2)+sigma2.vi + mu.vi^2) + b0 
+    
+    # compute the ELBO using the current values of mu*, sigma*, a*, b*
+    Elogq.mu = -log(sigma2.vi)/2
+    Elogq.sigma2 = -log(b.vi) - lgamma(a.vi) + (a.vi +1)*digamma(a.vi) - a.vi
+    A = sigma2.vi + mu.vi^2 - 2*X*mu.vi + X*X 
+    #B = sigma2.vi + mu.vi^2 - 2*mu0*mu.vi + mu0^2
+    Elogp.x.y.mu.sigma2 = -0.5*sum(A) -(m+1)/2*(log(b.vi)-digamma(a.vi))-0.5*a.vi/b.vi*(sigma2.vi + mu.vi^2+ sum(Y^2)) +
+      (-a0-1)*(log(b.vi)-digamma(a.vi)) - b0*a.vi/b.vi
+   
+    elbo = c(elbo, Elogp.x.y.mu.sigma2 - Elogq.mu - Elogq.sigma2)
+    mu.vi.list = c(mu.vi.list, mu.vi)
+    sigma2.vi.list = c(sigma2.vi.list, sigma2.vi)
+    a.vi.list = c(a.vi.list, a.vi)
+    b.vi.list = c(b.vi.list, b.vi)
+    
+    # compute the change in the elbo 
+    delta.elbo = elbo[length(elbo)]  - elbo[length(elbo)-1]
+    
+    # increase the number of iteration 
+    n.iter = n.iter + 1
+  }
+  
+  return(list(elbo = elbo, mu.vi.list = mu.vi.list, 
+              sigma2.vi.list=sigma2.vi.list, a.vi.list=a.vi.list, b.vi.list=b.vi.list))
+}
+
+# first set of intial values
+a0=2
+b0=2
+cavi1 = cavi.normal(x,y,a0=a0, b0=b0, mu.vi.init=2, sigma2.vi.init=4, 
+                    a.vi.init = 2, b.vi.init=2, epsilon=1e-5, max.iter=100)
+cavi.res = cavi1
+cavi.res$elbo
+plot(cavi.res$elbo, ylab='ELBO', xlab='Iteration')  
+print(paste("mu* and sigma2* = (", 
+            round(cavi.res$mu.vi.list[length(cavi.res$mu.vi.list)],3), ",", 
+            round(cavi.res$sigma2.vi.list[length(cavi.res$sigma2.vi.list)],3), ")", sep=""))
+print(paste("a* and b* = (", 
+            round(cavi.res$a.vi.list[length(cavi.res$a.vi.list)],3), ",", 
+            round(cavi.res$b.vi.list[length(cavi.res$b.vi.list)],3), ")", sep=""))
+#second set of initial values
+cavi2 = cavi.normal(x,y,a0=a0, b0=b0, mu.vi.init=-10, sigma2.vi.init=3, 
+                    a.vi.init = 10, b.vi.init=20, epsilon=1e-5, max.iter=100)
+cavi.res = cavi2
+cavi.res$elbo
+plot(cavi.res$elbo, ylab='ELBO', xlab='Iteration')  
+print(paste("mu* and sigma2* = (", 
+            round(cavi.res$mu.vi.list[length(cavi.res$mu.vi.list)],3), ",", 
+            round(cavi.res$sigma2.vi.list[length(cavi.res$sigma2.vi.list)],3), ")", sep=""))
+print(paste("a* and b* = (", 
+            round(cavi.res$a.vi.list[length(cavi.res$a.vi.list)],3), ",", 
+            round(cavi.res$b.vi.list[length(cavi.res$b.vi.list)],3), ")", sep=""))
+```
+The two Cavi runs have equally highest ELBO. You can see that approximate posterior distributions from these runs are the same. I will use the output from the first run:
+q*mu(mu) has a pdf N(0.818,0.031)
+q*sigma2(sigma2) has a pdf of Inverse-Gamma(12.5,6.095) 
+We can also see that ELBO increases at each iteration by looking at the plots above.
+
+
+
+
+
